@@ -4,7 +4,7 @@
 This framework can be used to write selenium and python automation scripts to test web applications 
 
 This automation test is implemented by referring the [github repository](https://github.com/qxf2/qxf2-page-object-model) qxf2-page-object-model for testing [weathershopper application](https://weathershopper.pythonanywhere.com/).
-The test is written in __python__ and __Selenium__ is used to automate the tests. The framework design is based on __Page Object Model__(POM). 
+The test is written in __python and __Selenium__ is used to automate the tests. The framework design is based on __Page Object Model__(POM). 
 
 If you want to work on Page Object Model or Test Automation, this framework will be useful for you.
 

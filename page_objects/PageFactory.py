@@ -7,6 +7,7 @@ Pages implemented so far:
 2. moisturizer list page
 3. sunscreen list page
 4. cart page
+
 """
 
 from page_objects.weathershopper_main_page import Weathershopper_Main_Page

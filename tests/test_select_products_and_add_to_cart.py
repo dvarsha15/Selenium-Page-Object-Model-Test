@@ -57,7 +57,7 @@ def test_check_tepmerature_and_navigate(test_obj):
                 result_flag = test_obj.click_add_boris_almond_button()
                 test_obj.log_result(result_flag,
                             positive="Successfully clicked on boris almond 'Add' button \n",
-                            negative=" Failed to click on boris almond 'Add' button\n Required moisturizer not found on page")
+                            negative=" Failed to click on boris almond 'Add' button")
                 test_obj.write('Script duration: %d seconds\n'%(int(time.time()-start_time)))
 
 

@@ -10,7 +10,10 @@ from appium import webdriver as mobile_webdriver
 from conf import remote_credentials
 from page_objects.drivers.remote_options import RemoteOptions
 from page_objects.drivers.local_browsers import LocalBrowsers
+from conf import ports_conf
 from conf import screenshot_conf
+
+localhost_url = 'http://localhost:%s/wd/hub'%ports_conf.port #Set the url of localhost
 
 class DriverFactory(RemoteOptions, LocalBrowsers):
     """Class contains methods for getting web drivers and setting up remote testing platforms."""
@@ -140,6 +143,134 @@ class DriverFactory(RemoteOptions, LocalBrowsers):
 
         return local_driver
 
+
+    def run_mobile(self, mobile_os_name, mobile_os_version, device_name, app_package,
+                   app_activity, remote_flag, device_flag, app_name, app_path,
+                   ud_id, org_id, signing_id, no_reset_flag, appium_version):
+        """Specify the mobile device configurations and get the mobile driver."""
+        #Get the remote credentials from remote_credentials file
+        username = remote_credentials.USERNAME
+        password = remote_credentials.ACCESS_KEY
+
+        #setup mobile device
+        desired_capabilities = self.set_mobile_device(mobile_os_name, mobile_os_version, device_name)
+
+        #Check wether the OS is android or iOS and get the mobile driver
+        if mobile_os_name in 'Android':
+            mobile_driver = self.android(remote_flag, desired_capabilities, app_path, app_name,
+                                         appium_version, app_package, app_activity, username,
+                                         password, device_flag)
+
+        elif mobile_os_name == 'iOS':
+            mobile_driver = self.ios(remote_flag, desired_capabilities, app_path, app_name,
+                                     username, password, app_package, no_reset_flag, ud_id,
+                                     org_id, signing_id, appium_version)
+
+        return mobile_driver
+
+
+    def android(self, remote_flag, desired_capabilities, app_path, app_name, appium_version,
+                app_package, app_activity, username, password, device_flag):
+        """Gets mobile driver for either local or remote setup of Android devices."""
+        #Get the driver when test is run on a remote platform
+        if remote_flag.lower() == 'y':
+            mobile_driver = self.remote_platform_mobile(remote_flag, app_path, app_name, desired_capabilities,
+                                                        username, password, appium_version)
+
+        #Get the driver when test is run on local setup
+        else:
+            try:
+                desired_capabilities['appPackage'] = app_package
+                desired_capabilities['appActivity'] = app_activity
+                if device_flag.lower() == 'y':
+                    mobile_driver = mobile_webdriver.Remote(localhost_url, desired_capabilities)
+                else:
+                    desired_capabilities['app'] = os.path.join(app_path, app_name)
+                    mobile_driver = mobile_webdriver.Remote(localhost_url, desired_capabilities)
+            except Exception as exception:
+                self.print_exception(exception, remote_flag)
+
+        return mobile_driver
+
+
+    def ios(self, remote_flag, desired_capabilities, app_path, app_name, username,
+            password, app_package, no_reset_flag, ud_id, org_id, signing_id,
+            appium_version):
+        """Gets mobile driver for either local or remote setup of Android devices."""
+        #Get the driver when test is run on a remote platform
+        if remote_flag.lower() == 'y':
+            mobile_driver = self.remote_platform_mobile(remote_flag, app_path, app_name,
+                                                        desired_capabilities, username,
+                                                        password, appium_version)
+
+        #Get the driver when test is run on local setup
+        else:
+            try:
+                desired_capabilities['app'] = os.path.join(app_path, app_name)
+                desired_capabilities['bundleId'] = app_package
+                desired_capabilities['noReset'] = no_reset_flag
+                if ud_id is not None:
+                    desired_capabilities['udid'] = ud_id
+                    desired_capabilities['xcodeOrgId'] = org_id
+                    desired_capabilities['xcodeSigningId'] = signing_id
+
+                mobile_driver = mobile_webdriver.Remote(localhost_url, desired_capabilities)
+
+            except Exception as exception:
+                self.print_exception(exception, remote_flag)
+
+        return mobile_driver
+
+
+    def remote_platform_mobile(self, remote_flag, app_path, app_name, desired_capabilities,
+                               username, password, appium_version):
+        """
+        Checks wether the test is to be run on either browserstack or saucelab and gets the
+        remote mobile driver.
+        """
+        desired_capabilities['idleTimeout'] = 300
+        desired_capabilities['name'] = 'Appium Python Test'
+        try:
+            #Gets driver when test is run on Saucelab
+            if remote_credentials.REMOTE_BROWSER_PLATFORM == 'SL':
+                mobile_driver = self.saucelab_mobile(app_path, app_name, desired_capabilities,
+                                                     username, password)
+            #Gets driver when test is run on Browserstack
+            else:
+                mobile_driver = self.browserstack_mobile(app_path, app_name, desired_capabilities,
+                                                         username, password, appium_version)
+        except Exception as exception:
+            self.print_exception(exception, remote_flag)
+
+        return mobile_driver
+
+
+    def saucelab_mobile(self, app_path, app_name, desired_capabilities, username, password):
+        """Setup mobile driver to run the test in Saucelab."""
+        self.sauce_upload(app_path, app_name) #Saucelabs expects the app to be uploaded to Sauce storage everytime the test is run
+
+        #Checking if the app_name is having spaces and replacing it with blank
+        if ' ' in app_name:
+            app_name = app_name.replace(' ', '')
+            print("The app file name is having spaces, hence replaced the white spaces with blank in the file name:%s"%app_name)
+        desired_capabilities['app'] = 'sauce-storage:'+app_name
+        desired_capabilities['autoAcceptAlert'] = 'true'
+        mobile_driver = mobile_webdriver.Remote(command_executor="http://%s:%s@ondemand.saucelabs.com:80/wd/hub"
+                                                %(username, password), desired_capabilities=desired_capabilities)
+
+        return mobile_driver
+
+
+    def browserstack_mobile(self, app_path, app_name, desired_capabilities, username, password,
+                            appium_version):
+        """Setup mobile driver to run the test in Browserstack."""
+        desired_capabilities['browserstack.appium_version'] = appium_version
+        desired_capabilities['realMobile'] = 'true'
+        desired_capabilities['app'] = self.browser_stack_upload(app_name, app_path) #upload the application to the Browserstack Storage
+        mobile_driver = mobile_webdriver.Remote(command_executor="http://%s:%s@hub.browserstack.com:80/wd/hub"
+                                                %(username, password), desired_capabilities=desired_capabilities)
+
+        return mobile_driver
 
     @staticmethod
     def print_exception(exception, remote_flag):
